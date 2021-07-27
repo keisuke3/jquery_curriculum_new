@@ -87,6 +87,109 @@
       //     <a class="btn-item" data-js="page-next" href="">次へ</a>
       //   </div>
       // </div>
+      $(function() {
+        var pageNum = 1;
+        var totalCount;
+
+        var errorMessage = {
+          0: '通信に失敗しました。インターネットの接続をご確認ください。',
+          400: '検索文字が入力されていません。',
+          404: 'ページが見つかりません。',
+          429: 'リクエスト過多です。しばらく時間を置いてからお試しください。',
+          500: 'システムエラー。長時間続くようであれば、<a href = "https://webservice.faq.rakuten.net/hc/ja/requests/new">こちらよりごお問い合わせください。</a>',
+          503: 'メンテナンス中です。しばらくお待ちください。',
+        };
+
+        // 検索結果表示処理
+        function showBooks(booksData) {
+          if (booksData.count === 0) {
+            $('.message').html('検索結果が見つかりませんでした。<br>別のキーワードで検索して下さい。');
+            return;
+          }
+          var bookInfoElement = '';
+          $.each(booksData.Items, function(index, value) {
+            bookInfoElement +=
+              '<li class="lists__item">' +
+                '<div class="lists__item__inner">' +
+                  '<a href="' + value.Item.itemUrl + '" class="lists__item__link" target="_blank">' +
+                    '<img src="' + value.Item.largeImageUrl + '" class="lists__item__img" alt="">' +
+                    '<p class="lists__item__detail">作品名：' + value.Item.title + '</p>' +
+                    '<p class="lists__item__detail">作者　：' + value.Item.author + '</p>' +
+                    '<p class="lists__item__detail">出版社：' + value.Item.publisherName + '</p>' +
+                  '</a>' +
+                '</div>' +
+              '</li>';
+          });
+          $('.lists').prepend(bookInfoElement);
+          showPager(booksData.pageCount, booksData.page);
+        }
+
+        // ページャ表示
+        function showPager(totalPage, currentPage) {
+          var pagerElement =
+            '<div class="pager" data-js="pager">' +
+              '<div class="counter">' +
+                '<span class="counter-current">' + currentPage + '</span>' +
+                '/' +
+                '<span class="counter-all">' + totalPage + '</span>' +
+              '</div>' +
+              '<div class="btn-wrapper">' +
+                '<a class="btn-item" data-js="page-prev" href="">前へ</a>' +
+                '<a class="btn-item" data-js="page-next" href="">次へ</a>' +
+              '</div>' +
+            '</div>';
+          $('.lists').after(pagerElement);
+          if (currentPage === 1) $('.btn-wrapper a:first').addClass('disabled');
+          if (currentPage === totalPage) $('.btn-wrapper a:last').addClass('disabled');
+        }
+
+        // 楽天ブックス検索処理
+        function searchBooks(pageNum) {
+          var searchWord = $('.search__text__input').val();
+          $.ajax({
+            url: 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522',
+            type: 'GET',
+            datatype: 'json',
+            data: {
+              applicationId: appId,
+              booksGenreId: '001',
+              hits: 20,
+              keyword: searchWord,
+              page: pageNum,
+            },
+          }).always(function () {
+            $('.pager').remove();
+            $('.lists').empty();
+            $('.message').empty();
+          }).done(function (data) {
+            showBooks(data);
+            totalCount = data.pageCount;
+          }).fail(function(error) {
+            $('.message').html(errorMessage[error.status]);
+          });
+        }
+
+        // 検索ボタンクリック
+        $('.search__btn').on('click', function() {
+          pageNum = 1;
+          searchBooks(pageNum);
+        });
+
+        // pegerクリック
+        $(document).on('click', '.btn-item', function(event) {
+          event.preventDefault();
+          if (event.target.dataset.js === 'page-prev' && pageNum > 1) {
+            $('html, body').animate({ scrollTop: 0 }, 300);
+            pageNum--;
+            searchBooks(pageNum);
+          }
+          if (event.target.dataset.js === 'page-next' && pageNum !== totalCount) {
+            $('html, body').animate({ scrollTop: 0 }, 300);
+            pageNum++;
+            searchBooks(pageNum);
+          }
+        })
+      });
     </script>
   </body>
 </html>
